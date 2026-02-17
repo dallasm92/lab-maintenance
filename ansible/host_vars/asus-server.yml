@@ -1,0 +1,18 @@
+---
+baseline_required_services:
+  - ssh
+  - fail2ban
+  - docker
+
+baseline_required_enabled_timers:
+  - lab-nightly-backup.timer
+  - lab-offsite-sync.timer
+  - lab-backup-healthcheck.timer
+  - lab-auto-update.timer
+  - casaos-maintenance.timer
+  - duplicati-nightly-backup.timer
+
+baseline_required_packages:
+  - ufw
+  - fail2ban
+  - docker.io

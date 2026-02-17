@@ -1,0 +1,11 @@
+---
+baseline_required_services:
+  - ssh
+  - fail2ban
+
+baseline_required_enabled_timers:
+  - lab-monthly-healthcheck.timer
+
+baseline_required_packages:
+  - ufw
+  - fail2ban

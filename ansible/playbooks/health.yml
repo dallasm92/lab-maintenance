@@ -1,0 +1,91 @@
+---
+- name: Collect host health data
+  hosts: debian_family
+  become: true
+  gather_facts: true
+
+  vars:
+    report_timestamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+
+  tasks:
+    - name: Gather uptime
+      ansible.builtin.command: uptime -p
+      register: uptime_cmd
+      changed_when: false
+
+    - name: Gather root filesystem usage percent
+      ansible.builtin.shell: "df -P / | awk 'NR==2 {print $5}'"
+      register: disk_cmd
+      changed_when: false
+
+    - name: Gather memory summary
+      ansible.builtin.shell: "free -h | awk '/^Mem:/ {print $3 \" used / \" $2 \" total\"}'"
+      register: mem_cmd
+      changed_when: false
+
+    - name: Gather load averages
+      ansible.builtin.shell: "cat /proc/loadavg | awk '{print $1 \" \" $2 \" \" $3}'"
+      register: load_cmd
+      changed_when: false
+
+    - name: Check Docker service availability
+      ansible.builtin.command: systemctl is-active docker
+      register: docker_cmd
+      failed_when: false
+      changed_when: false
+
+    - name: Build per-host health payload
+      ansible.builtin.set_fact:
+        host_health:
+          host: "{{ inventory_hostname }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          uptime: "{{ uptime_cmd.stdout | default('unknown') }}"
+          root_disk_used_percent: "{{ disk_cmd.stdout | default('unknown') }}"
+          memory: "{{ mem_cmd.stdout | default('unknown') }}"
+          load_avg_1_5_15: "{{ load_cmd.stdout | default('unknown') }}"
+          kernel: "{{ ansible_kernel }}"
+          docker_status: >-
+            {{ docker_cmd.stdout if docker_cmd.rc == 0 else 'not installed or inactive' }}
+
+    - name: Show per-host health summary
+      ansible.builtin.debug:
+        var: host_health
+
+    - name: Ensure local report directory exists
+      ansible.builtin.file:
+        path: "{{ health_report_dir }}"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Write local health report on control machine
+      ansible.builtin.copy:
+        dest: "{{ health_report_dir }}/health-{{ report_timestamp }}.txt"
+        mode: "0644"
+        content: |
+          Health Report (generated {{ report_timestamp }})
+          ===========================================
+            {% for h in ansible_play_hosts_all %}
+            {% if hostvars[h].host_health is defined %}
+            Host: {{ h }}
+            Uptime: {{ hostvars[h].host_health.uptime }}
+            Root Disk Used: {{ hostvars[h].host_health.root_disk_used_percent }}
+            Memory: {{ hostvars[h].host_health.memory }}
+            Load (1/5/15): {{ hostvars[h].host_health.load_avg_1_5_15 }}
+            Kernel: {{ hostvars[h].host_health.kernel }}
+            Docker: {{ hostvars[h].host_health.docker_status }}
+
+            {% endif %}
+            {% endfor %}
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Report local report path
+      ansible.builtin.debug:
+        msg: "Local health report written to {{ health_report_dir }}/health-{{ report_timestamp }}.txt"
+      delegate_to: localhost
+      become: false
+      run_once: true

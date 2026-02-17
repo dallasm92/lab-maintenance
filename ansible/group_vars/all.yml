@@ -1,0 +1,35 @@
+---
+# Common variables for all managed hosts.
+
+# Set this to true only if you deliberately want to run dist-upgrade style updates.
+apt_use_dist_upgrade: false
+
+# Safety controls for APT runs.
+apt_update_cache_valid_time: 3600
+apt_autoremove: true
+apt_autoclean: true
+
+# Reboot behavior
+enable_reboot_playbook: true
+reboot_timeout_seconds: 900
+
+# Health report output on the control machine.
+health_report_dir: "{{ playbook_dir }}/../reports"
+
+# Safe rollout defaults for baseline work.
+# Keep serial=1 so only one host is touched at a time.
+rollout_serial_default: 1
+
+# Enforcement controls (all disabled by default).
+# Validate first, then explicitly enable what you want.
+baseline_enforce_packages: false
+baseline_enforce_timers: false
+baseline_enforce_firewall: false
+
+# Baseline expectations used by playbooks/baseline.yml
+baseline_sshd_expected:
+  permitrootlogin: "no"
+  passwordauthentication: "no"
+  kbdinteractiveauthentication: "no"
+  maxauthtries: "3"
+  x11forwarding: "no"

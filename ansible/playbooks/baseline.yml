@@ -1,0 +1,81 @@
+---
+- name: Validate and optionally enforce baseline controls
+  hosts: debian_family
+  become: true
+  gather_facts: true
+  serial: "{{ rollout_serial | default(1) }}"
+
+  tasks:
+    - name: Collect sshd effective config
+      ansible.builtin.command: sshd -T
+      register: sshd_t
+      changed_when: false
+      tags: [validate]
+
+    - name: Validate sshd hardening settings
+      ansible.builtin.assert:
+        that:
+          - "(item.key ~ ' ' ~ item.value) in sshd_t.stdout"
+        fail_msg: "Missing expected sshd setting: {{ item.key }} {{ item.value }}"
+      loop: "{{ baseline_sshd_expected | dict2items }}"
+      tags: [validate]
+
+    - name: Validate UFW is active
+      ansible.builtin.command: ufw status
+      register: ufw_status
+      changed_when: false
+      failed_when: "'Status: active' not in ufw_status.stdout"
+      tags: [validate]
+
+    - name: Validate required services are active
+      ansible.builtin.command: "systemctl is-active {{ item }}"
+      register: active_service_checks
+      changed_when: false
+      failed_when: active_service_checks.rc != 0
+      loop: "{{ baseline_required_services | default([]) }}"
+      tags: [validate]
+
+    - name: Validate required timers are enabled
+      ansible.builtin.command: "systemctl is-enabled {{ item }}"
+      register: enabled_timer_checks
+      changed_when: false
+      failed_when: enabled_timer_checks.rc != 0
+      loop: "{{ baseline_required_enabled_timers | default([]) }}"
+      tags: [validate]
+
+    - name: Enforce required packages
+      ansible.builtin.apt:
+        name: "{{ baseline_required_packages | default([]) }}"
+        state: present
+        update_cache: true
+      when:
+        - baseline_enforce_packages | bool
+        - (baseline_required_packages | default([])) | length > 0
+      tags: [enforce]
+
+    - name: Enforce required timers are enabled and started
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop: "{{ baseline_required_enabled_timers | default([]) }}"
+      when:
+        - baseline_enforce_timers | bool
+        - (baseline_required_enabled_timers | default([])) | length > 0
+      tags: [enforce]
+
+    - name: Enforce UFW enabled
+      ansible.builtin.command: ufw --force enable
+      changed_when: false
+      when: baseline_enforce_firewall | bool
+      tags: [enforce]
+
+    - name: Baseline summary
+      ansible.builtin.debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          validation: "passed"
+          enforced_packages: "{{ baseline_enforce_packages | bool }}"
+          enforced_timers: "{{ baseline_enforce_timers | bool }}"
+          enforced_firewall: "{{ baseline_enforce_firewall | bool }}"
+      tags: [validate, enforce]

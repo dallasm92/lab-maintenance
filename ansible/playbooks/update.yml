@@ -1,0 +1,36 @@
+---
+- name: Safely update Debian-family hosts
+  hosts: debian_family
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Refresh apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: "{{ apt_update_cache_valid_time }}"
+      register: apt_cache_result
+
+    - name: Upgrade installed packages (safe by default)
+      ansible.builtin.apt:
+        upgrade: "{{ 'dist' if apt_use_dist_upgrade else 'yes' }}"
+      register: apt_upgrade_result
+
+    - name: Remove unused dependencies
+      ansible.builtin.apt:
+        autoremove: "{{ apt_autoremove }}"
+      register: apt_autoremove_result
+
+    - name: Clean local apt package cache
+      ansible.builtin.apt:
+        autoclean: "{{ apt_autoclean }}"
+      register: apt_autoclean_result
+
+    - name: Report update summary
+      ansible.builtin.debug:
+        msg:
+          host: "{{ inventory_hostname }}"
+          cache_updated: "{{ apt_cache_result.changed }}"
+          packages_upgraded: "{{ apt_upgrade_result.changed }}"
+          packages_removed: "{{ apt_autoremove_result.changed }}"
+          cache_cleaned: "{{ apt_autoclean_result.changed }}"

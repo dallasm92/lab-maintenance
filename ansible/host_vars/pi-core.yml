@@ -1,0 +1,15 @@
+---
+baseline_required_services:
+  - ssh
+  - fail2ban
+  - pihole-FTL
+  - unbound
+  - mosquitto
+  - docker
+
+baseline_required_enabled_timers: []
+
+baseline_required_packages:
+  - ufw
+  - fail2ban
+  - docker.io
