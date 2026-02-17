@@ -1,0 +1,41 @@
+name: Public Security Scan
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ripgrep
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+
+      - name: Scan for private/internal IP addressing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n --hidden --glob '!.git' --glob '!**/*.png' --glob '!**/*.jpg' --glob '!**/*.jpeg' --glob '!**/*.gif' --glob '!**/*.svg' --glob '!**/*.pdf' \
+            '\b(?:10\.(?:\d{1,3}\.){2}\d{1,3}|192\.168\.(?:\d{1,3}\.)\d{1,3}|172\.(?:1[6-9]|2[0-9]|3[0-1])\.(?:\d{1,3}\.)\d{1,3})\b' .; then
+            echo "Private/internal IP pattern detected. Remove or sanitize before merge."
+            exit 1
+          fi
+
+      - name: Scan for secret-like patterns
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n --hidden --glob '!.git' --glob '!**/*.png' --glob '!**/*.jpg' --glob '!**/*.jpeg' --glob '!**/*.gif' --glob '!**/*.svg' --glob '!**/*.pdf' \
+            '(BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|ghp_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|api[_-]?key|secret\s*[:=]|token\s*[:=]|password\s*[:=]|Authorization:\s*Bearer\s+[A-Za-z0-9._-]+)' .; then
+            echo "Secret-like pattern detected. Remove, rotate, and re-commit sanitized content."
+            exit 1
+          fi
