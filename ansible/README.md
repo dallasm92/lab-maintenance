@@ -7,6 +7,15 @@ Safe, repeatable Ansible playbooks for maintaining Debian-family hosts:
 
 This repository is designed to avoid destructive operations by default.
 
+## Hiring Manager Quick View
+
+| Review area | Evidence |
+|---|---|
+| Repeatable administration | Wrapper scripts call Ansible playbooks with consistent inventory/config handling |
+| Risk control | `--check` examples, canary rollout examples, and serial rollout defaults |
+| Linux maintenance | apt cache refresh, package upgrade, health reporting, and reboot-required checks |
+| Public-safe design | `inventory.example.ini` is sanitized; real `inventory.ini` and reports stay local-only |
+
 ## Repository Layout
 
 ```text
