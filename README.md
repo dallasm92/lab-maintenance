@@ -4,6 +4,9 @@ Automation-focused repository for safe Linux host maintenance workflows.
 
 Last reviewed: April 13, 2026
 
+Social preview asset:
+- [assets/social-preview.png](assets/social-preview.png)
+
 ## Objective
 
 Document sanitized automation patterns for routine Linux host maintenance in the home lab without exposing real inventories, secrets, or environment-specific operational data.
